@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import QMainWindow, QPushButton, QFileDialog, QVBoxLayout, QWidget, QLabel
 import pandas as pd
-from logic import extract_records_from_xml, create_final_dataframe
+from logic import parse_xml_to_dataframe, filter_and_merge_dfs
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -39,12 +39,23 @@ class MainWindow(QMainWindow):
 
     def process_file(self, file_path):
         self.label_status.setText("Procesando...")
-        df_record_created = extract_records_from_xml(file_path, 'RecordCreated')
-        df_new_note = extract_records_from_xml(file_path, 'NewNote')
+        df = parse_xml_to_dataframe(file_path)
 
-        # Crear el DataFrame final
-        self.df_final = create_final_dataframe(df_record_created, df_new_note)
+        # Crear el DataFrame final aplicando el filtro y merge
+        self.df_final = filter_and_merge_dfs(df)
         
+        # Agregar columna 'process' basada en 'Note' y 'Origin'
+        self.df_final['process'] = self.df_final.apply(lambda row: (
+            'Retail On Going' if 'SRS' in row['Note'] else
+            'Commercial On Going' if 'ASTRA' in row['Note'] else
+            'Vendor' if 'ORCL' in row['Note'] else
+            'Retail On Boarding' if 'WebServices' in row['Origin'] else
+            ''
+        ), axis=1)
+        
+        # Eliminar filas donde 'Origin' contiene 'RealTime'
+        self.df_final = self.df_final[~self.df_final['Origin'].str.contains('RealTime', na=False)]
+
         self.label_status.setText("Proceso completo. Registros encontrados: {}".format(len(self.df_final)))
         self.button_save.setEnabled(True)  # Habilitar el botón de guardar
 
