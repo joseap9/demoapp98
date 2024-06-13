@@ -46,7 +46,18 @@ def create_final_dataframe(df_record_created, df_new_note):
             return 'Retail On Boarding'
         return ''
     
-    df_final['process'] = df_final.apply(determine_process, axis=1)
+    df_final['process'] = df_final.apply(lambda row: determine_process(row), axis=1)
     df_final = df_final[df_final['Origin'].str.contains('RealTime') == False]
     
     return df_final
+
+# Ejemplo de uso
+if __name__ == "__main__":
+    file_path = 'ruta_al_archivo.xml'
+    df_record_created = extract_records_from_xml(file_path, 'RecordCreated')
+    df_new_note = extract_records_from_xml(file_path, 'NewNote')
+
+    # Crear el DataFrame final
+    df_final = create_final_dataframe(df_record_created, df_new_note)
+    print(df_final.head())  # Imprimir las primeras filas del DataFrame para verificar
+    print(f"Total de registros: {len(df_final)}")
