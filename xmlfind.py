@@ -50,7 +50,7 @@ def find_element_path(tree, tag_name, namespaces):
     return None
 
 # Ejemplo de uso
-file_path = 'tu_archivo.xml'
+file_path = r'tu_archivo.xml'  # Usa una cadena sin procesar para la ruta del archivo
 tree, namespaces = parse_xml(file_path)
 
 # Busca la etiqueta específica que deseas, por ejemplo, 'Full'
