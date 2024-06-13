@@ -1,12 +1,39 @@
-from PyQt5.QtWidgets import QMainWindow, QPushButton, QFileDialog, QVBoxLayout, QWidget, QLabel
+from PyQt5.QtWidgets import QMainWindow, QPushButton, QFileDialog, QVBoxLayout, QWidget, QLabel, QTableView
+from PyQt5.QtCore import QAbstractTableModel, Qt
 import pandas as pd
 from logic import parse_xml_to_dataframe, filter_and_merge_dfs
+
+class PandasModel(QAbstractTableModel):
+    def __init__(self, df=pd.DataFrame()):
+        QAbstractTableModel.__init__(self)
+        self._df = df
+
+    def rowCount(self, parent=None):
+        return len(self._df)
+
+    def columnCount(self, parent=None):
+        return self._df.shape[1]
+
+    def data(self, index, role=Qt.DisplayRole):
+        if index.isValid():
+            if role == Qt.DisplayRole:
+                return str(self._df.iloc[index.row(), index.column()])
+        return None
+
+    def headerData(self, col, orientation, role):
+        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
+            return self._df.columns[col]
+        return None
+
+    def setDataFrame(self, df):
+        self._df = df
+        self.layoutChanged.emit()
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("XML to DataFrame")
-        self.setGeometry(100, 100, 600, 400)
+        self.setGeometry(100, 100, 800, 600)
 
         self.layout = QVBoxLayout()
 
@@ -25,11 +52,16 @@ class MainWindow(QMainWindow):
         self.button_save.setEnabled(False)  # Deshabilitar hasta que el proceso esté completo
         self.layout.addWidget(self.button_save)
 
+        self.table_view = QTableView()
+        self.layout.addWidget(self.table_view)
+
         container = QWidget()
         container.setLayout(self.layout)
         self.setCentralWidget(container)
 
         self.df_final = pd.DataFrame()
+        self.model = PandasModel(self.df_final)
+        self.table_view.setModel(self.model)
 
     def open_file_dialog(self):
         options = QFileDialog.Options()
@@ -43,19 +75,10 @@ class MainWindow(QMainWindow):
 
         # Crear el DataFrame final aplicando el filtro y merge
         self.df_final = filter_and_merge_dfs(df)
-        
-        # Agregar columna 'process' basada en 'Note' y 'Origin'
-        self.df_final['process'] = self.df_final.apply(lambda row: (
-            'Retail On Going' if 'SRS' in row['Note'] else
-            'Commercial On Going' if 'ASTRA' in row['Note'] else
-            'Vendor' if 'ORCL' in row['Note'] else
-            'Retail On Boarding' if 'WebServices' in row['Origin'] else
-            ''
-        ), axis=1)
-        
-        # Eliminar filas donde 'Origin' contiene 'RealTime'
-        self.df_final = self.df_final[~self.df_final['Origin'].str.contains('RealTime', na=False)]
 
+        # Actualizar el modelo del TableView con los primeros 15 registros
+        self.model.setDataFrame(self.df_final.head(15))
+        
         self.label_status.setText("Proceso completo. Registros encontrados: {}".format(len(self.df_final)))
         self.button_save.setEnabled(True)  # Habilitar el botón de guardar
 
