@@ -35,29 +35,16 @@ def create_final_dataframe(df_record_created, df_new_note):
     df_final = df_record_created.copy()
     df_final['Note 2'] = df_final['Id'].map(df_new_note.set_index('Id')['Note'])
     
-    def determine_process(row):
-        if 'SRS' in row['Note']:
-            return 'Retail On Going'
-        elif 'ASTRA' in row['Note']:
-            return 'Commercial On Going'
-        elif 'ORCL' in row['Note']:
-            return 'Vendor'
-        elif 'WebServices' in row['Origin']:
-            return 'Retail On Boarding'
-        return ''
+    # Agregar columna 'process' basada en 'Note' y 'Origin'
+    df_final['process'] = df_final.apply(lambda row: (
+        'Retail On Going' if 'SRS' in row['Note'] else
+        'Commercial On Going' if 'ASTRA' in row['Note'] else
+        'Vendor' if 'ORCL' in row['Note'] else
+        'Retail On Boarding' if 'WebServices' in row['Origin'] else
+        ''
+    ), axis=1)
     
-    df_final['process'] = df_final.apply(lambda row: determine_process(row), axis=1)
-    df_final = df_final[df_final['Origin'].str.contains('RealTime') == False]
+    # Eliminar filas donde 'Origin' contiene 'RealTime'
+    df_final = df_final[~df_final['Origin'].str.contains('RealTime', na=False)]
     
     return df_final
-
-# Ejemplo de uso
-if __name__ == "__main__":
-    file_path = 'ruta_al_archivo.xml'
-    df_record_created = extract_records_from_xml(file_path, 'RecordCreated')
-    df_new_note = extract_records_from_xml(file_path, 'NewNote')
-
-    # Crear el DataFrame final
-    df_final = create_final_dataframe(df_record_created, df_new_note)
-    print(df_final.head())  # Imprimir las primeras filas del DataFrame para verificar
-    print(f"Total de registros: {len(df_final)}")
