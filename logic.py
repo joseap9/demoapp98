@@ -19,23 +19,41 @@ def parse_dict_to_dataframe(xml_dict):
     data = {column: [] for column in columns}
     
     for record in records:
-        data['Id'].append(record.get('Id', ''))
+        id_value = record.get('Id', '')
         input_entity = record.get('InputEntity', {})
-        data['EntityType'].append(input_entity.get('EntityType', ''))
+        entity_type = input_entity.get('EntityType', '')
         name = input_entity.get('Name', {})
-        data['Full'].append(name.get('Full', ''))
-        data['IdNumber'].append(record.get('IdNumber', ''))
-        data['Status'].append(record.get('Status', ''))
-        data['AlertState'].append(record.get('AlertState', ''))
+        full_name = name.get('Full', '')
+        id_number = record.get('IdNumber', '')
+        status = record.get('Status', '')
+        alert_state = record.get('AlertState', '')
+        origin = record.get('Origin', '')
         
         audit_records = record.get('AuditRecords', {}).get('AuditRecord', [])
         if isinstance(audit_records, dict):
             audit_records = [audit_records]
-        for audit_record in audit_records:
-            data['Action'].append(audit_record.get('Action', ''))
-            data['Note'].append(audit_record.get('Note', ''))
-        
-        data['Origin'].append(record.get('Origin', ''))
+
+        if not audit_records:
+            data['Id'].append(id_value)
+            data['EntityType'].append(entity_type)
+            data['Full'].append(full_name)
+            data['IdNumber'].append(id_number)
+            data['Status'].append(status)
+            data['AlertState'].append(alert_state)
+            data['Action'].append('')
+            data['Note'].append('')
+            data['Origin'].append(origin)
+        else:
+            for audit_record in audit_records:
+                data['Id'].append(id_value)
+                data['EntityType'].append(entity_type)
+                data['Full'].append(full_name)
+                data['IdNumber'].append(id_number)
+                data['Status'].append(status)
+                data['AlertState'].append(alert_state)
+                data['Action'].append(audit_record.get('Action', ''))
+                data['Note'].append(audit_record.get('Note', ''))
+                data['Origin'].append(origin)
     
     df = pd.DataFrame(data)
     return df
