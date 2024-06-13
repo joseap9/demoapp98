@@ -1,8 +1,7 @@
-import json
-import pandas as pd
 import xmltodict
+import pandas as pd
 
-def xml_to_json(xml_file_path):
+def xml_to_dict(xml_file_path):
     # Abre y lee el archivo XML
     with open(xml_file_path, 'r', encoding='utf-8') as xml_file:
         xml_content = xml_file.read()
@@ -10,36 +9,51 @@ def xml_to_json(xml_file_path):
     # Convierte el contenido XML a un diccionario
     xml_dict = xmltodict.parse(xml_content)
     
-    # Convierte el diccionario a formato JSON
-    json_content = json.dumps(xml_dict, indent=4)
-    
-    return json.loads(json_content)
+    return xml_dict
 
-def parse_json_to_dataframe(json_data):
-    # Extrae los registros del JSON
-    records = json_data['ResultRecords']['ResultRecord']
+def parse_dict_to_dataframe(xml_dict):
+    # Extrae los registros del diccionario
+    records = xml_dict['ResultRecords']['ResultRecord']
     
     columns = ["Id", "EntityType", "Full", "IdNumber", "Status", "AlertState", "Action", "Note", "Origin"]
     data = {column: [] for column in columns}
     
     for record in records:
-        data['Id'].append(record.get('Id', ''))
+        id_value = record.get('Id', '')
         input_entity = record.get('InputEntity', {})
-        data['EntityType'].append(input_entity.get('EntityType', ''))
+        entity_type = input_entity.get('EntityType', '')
         name = input_entity.get('Name', {})
-        data['Full'].append(name.get('Full', ''))
-        data['IdNumber'].append(record.get('IdNumber', ''))
-        data['Status'].append(record.get('Status', ''))
-        data['AlertState'].append(record.get('AlertState', ''))
+        full_name = name.get('Full', '')
+        id_number = record.get('IdNumber', '')
+        status = record.get('Status', '')
+        alert_state = record.get('AlertState', '')
+        origin = record.get('Origin', '')
         
         audit_records = record.get('AuditRecords', {}).get('AuditRecord', [])
         if isinstance(audit_records, dict):
             audit_records = [audit_records]
-        for audit_record in audit_records:
-            data['Action'].append(audit_record.get('Action', ''))
-            data['Note'].append(audit_record.get('Note', ''))
-        
-        data['Origin'].append(record.get('Origin', ''))
+
+        if not audit_records:
+            data['Id'].append(id_value)
+            data['EntityType'].append(entity_type)
+            data['Full'].append(full_name)
+            data['IdNumber'].append(id_number)
+            data['Status'].append(status)
+            data['AlertState'].append(alert_state)
+            data['Action'].append('')
+            data['Note'].append('')
+            data['Origin'].append(origin)
+        else:
+            for audit_record in audit_records:
+                data['Id'].append(id_value)
+                data['EntityType'].append(entity_type)
+                data['Full'].append(full_name)
+                data['IdNumber'].append(id_number)
+                data['Status'].append(status)
+                data['AlertState'].append(alert_state)
+                data['Action'].append(audit_record.get('Action', ''))
+                data['Note'].append(audit_record.get('Note', ''))
+                data['Origin'].append(origin)
     
     df = pd.DataFrame(data)
     return df
@@ -53,7 +67,7 @@ def filter_and_merge_dfs(df):
 
     # Merge de df_record_created con Note de df_new_note basado en Id
     df_final = df_record_created.copy()
-    df_final['Note 2'] = df_final['Id'].map(df_new_note.set_index('Id')['Note'])
+    df_final['Note 2'] = df_final['Id'].map(df_new_note.set_index('Id')['Note'].to_dict())
 
     # Agregar columna 'process' basada en 'Note' y 'Origin'
     df_final['process'] = df_final.apply(lambda row: (
@@ -68,11 +82,3 @@ def filter_and_merge_dfs(df):
     df_final = df_final[~df_final['Origin'].str.contains('RealTime', na=False)]
 
     return df_final
-
-if __name__ == "__main__":
-    file_path = 'ruta_al_archivo.xml'
-    json_data = xml_to_json(file_path)
-    df = parse_json_to_dataframe(json_data)
-    df_final = filter_and_merge_dfs(df)
-    print(df_final.head())  # Imprimir las primeras filas del DataFrame para verificar
-    print(f"Total de registros: {len(df_final)}")
