@@ -1,33 +1,66 @@
-import xml.etree.ElementTree as ET
+import xmltodict
 import pandas as pd
 
-def parse_xml_to_dataframe(file_path):
-    tree = ET.parse(file_path)
-    root = tree.getroot()
+def xml_to_dict(xml_file_path):
+    # Abre y lee el archivo XML
+    with open(xml_file_path, 'r', encoding='utf-8') as xml_file:
+        xml_content = xml_file.read()
+    
+    # Convierte el contenido XML a un diccionario
+    xml_dict = xmltodict.parse(xml_content)
+    
+    return xml_dict
 
+def parse_dict_to_dataframe(xml_dict):
+    # Extrae los registros del diccionario
+    records = xml_dict['ResultRecords']['ResultRecord']
+    
     columns = ["Id", "EntityType", "Full", "IdNumber", "Status", "AlertState", "Action", "Note", "Origin"]
-    records = []
-
-    namespace = {
-        'ns': 'https://support.bridgerinsight.lexisnexis.com/downloads/xsd/5.0/ResultsExport.xsd',
-        'i': 'http://www.w3.org/2001/XMLSchema-instance'
-    }
-
-    # Procesar registros
-    for record in root.findall(".//ns:ResultRecord", namespaces=namespace):
-        record_data = {}
-        record_data["Id"] = record.findtext("ns:Id", default="", namespaces=namespace)
-        record_data["EntityType"] = record.findtext("ns:InputEntity/ns:EntityType", default="", namespaces=namespace)
-        record_data["Full"] = record.findtext(".//ns:Name/ns:Full", default="", namespaces=namespace)
-        record_data["IdNumber"] = record.findtext("ns:IdNumber", default="", namespaces=namespace)
-        record_data["Status"] = record.findtext("ns:Status", default="", namespaces=namespace)
-        record_data["AlertState"] = record.findtext("ns:AlertState", default="", namespaces=namespace)
-        record_data["Action"] = record.findtext("ns:AuditRecords/ns:AuditRecord/ns:Action", default="", namespaces=namespace)
-        record_data["Note"] = record.findtext("ns:AuditRecords/ns:AuditRecord/ns:Note", default="", namespaces=namespace)
-        record_data["Origin"] = record.findtext("ns:Origin", default="", namespaces=namespace)
-
-        records.append(record_data)
-        print(f"Processed record: {record_data}")
-
-    df = pd.DataFrame(records, columns=columns)
+    data = {column: [] for column in columns}
+    
+    for record in records:
+        data['Id'].append(record.get('Id', ''))
+        input_entity = record.get('InputEntity', {})
+        data['EntityType'].append(input_entity.get('EntityType', ''))
+        name = input_entity.get('Name', {})
+        data['Full'].append(name.get('Full', ''))
+        data['IdNumber'].append(record.get('IdNumber', ''))
+        data['Status'].append(record.get('Status', ''))
+        data['AlertState'].append(record.get('AlertState', ''))
+        
+        audit_records = record.get('AuditRecords', {}).get('AuditRecord', [])
+        if isinstance(audit_records, dict):
+            audit_records = [audit_records]
+        for audit_record in audit_records:
+            data['Action'].append(audit_record.get('Action', ''))
+            data['Note'].append(audit_record.get('Note', ''))
+        
+        data['Origin'].append(record.get('Origin', ''))
+    
+    df = pd.DataFrame(data)
     return df
+
+def filter_and_merge_dfs(df):
+    # DataFrame con Action = 'RecordCreated'
+    df_record_created = df[df['Action'] == 'RecordCreated'].copy()
+
+    # DataFrame con Action = 'NewNote'
+    df_new_note = df[df['Action'] == 'NewNote'].copy()
+
+    # Merge de df_record_created con Note de df_new_note basado en Id
+    df_final = df_record_created.copy()
+    df_final['Note 2'] = df_final['Id'].map(df_new_note.set_index('Id')['Note'])
+
+    # Agregar columna 'process' basada en 'Note' y 'Origin'
+    df_final['process'] = df_final.apply(lambda row: (
+        'Retail On Going' if 'SRS' in row['Note'] else
+        'Commercial On Going' if 'ASTRA' in row['Note'] else
+        'Vendor' if 'ORCL' in row['Note'] else
+        'Retail On Boarding' if 'WebServices' in row['Origin'] else
+        ''
+    ), axis=1)
+
+    # Eliminar filas donde 'Origin' contiene 'RealTime'
+    df_final = df_final[~df_final['Origin'].str.contains('RealTime', na=False)]
+
+    return df_final

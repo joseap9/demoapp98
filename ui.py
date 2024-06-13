@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import QMainWindow, QPushButton, QFileDialog, QVBoxLayout, QWidget, QLabel, QTableView
 from PyQt5.QtCore import QAbstractTableModel, Qt
 import pandas as pd
-from logic import parse_xml_to_dataframe, filter_and_merge_dfs
+from logic import xml_to_dict, parse_dict_to_dataframe, filter_and_merge_dfs
 
 class PandasModel(QAbstractTableModel):
     def __init__(self, df=pd.DataFrame()):
@@ -71,7 +71,8 @@ class MainWindow(QMainWindow):
 
     def process_file(self, file_path):
         self.label_status.setText("Procesando...")
-        df = parse_xml_to_dataframe(file_path)
+        xml_dict = xml_to_dict(file_path)
+        df = parse_dict_to_dataframe(xml_dict)
 
         # Crear el DataFrame final aplicando el filtro y merge
         self.df_final = filter_and_merge_dfs(df)
