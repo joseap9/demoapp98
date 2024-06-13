@@ -1,7 +1,14 @@
+import os
 import xmltodict
 import json
 
-def xml_to_json(xml_file_path, json_file_path):
+def xml_to_json(xml_file_path):
+    # Obtiene la ruta a la carpeta de Descargas del usuario
+    downloads_path = os.path.join(os.path.expanduser('~'), 'Downloads')
+    
+    # Construye la ruta completa para el archivo JSON de salida
+    json_file_path = os.path.join(downloads_path, 'archivo.json')
+    
     # Abre y lee el archivo XML
     with open(xml_file_path, 'r', encoding='utf-8') as xml_file:
         xml_content = xml_file.read()
@@ -19,6 +26,5 @@ def xml_to_json(xml_file_path, json_file_path):
     print(f"El archivo XML ha sido convertido a JSON y guardado en {json_file_path}")
 
 # Ejemplo de uso
-xml_file_path = 'archivo.xml'
-json_file_path = 'archivo.json'
-xml_to_json(xml_file_path, json_file_path)
+xml_file_path = r'C:\ruta\a\tu\archivo.xml'  # Usa la ruta completa a tu archivo XML
+xml_to_json(xml_file_path)
