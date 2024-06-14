@@ -16,18 +16,23 @@ def clean_dict(xml_dict):
     records = xml_dict['ResultRecords']['ResultRecord']
     
     for record in records:
+        if isinstance(record, str):
+            continue  # Omite los registros que sean cadenas
+        
         cleaned_record = {
-            'Id': record.get('Id', ''),
-            'EntityType': record.get('InputEntity', {}).get('EntityType', ''),
-            'Full': record.get('InputEntity', {}).get('Name', {}).get('Full', ''),
-            'IdNumber': record.get('IdNumber', ''),
-            'Status': record.get('Status', ''),
-            'AlertState': record.get('AlertState', ''),
-            'Origin': record.get('Origin', ''),
+            'Id': str(record.get('Id', '')),
+            'EntityType': str(record.get('InputEntity', {}).get('EntityType', '')),
+            'Full': str(record.get('InputEntity', {}).get('Name', {}).get('Full', '')),
+            'IdNumber': str(record.get('IdNumber', '')),
+            'Status': str(record.get('Status', '')),
+            'AlertState': str(record.get('AlertState', '')),
+            'Origin': str(record.get('Origin', '')),
             'AuditRecords': record.get('AuditRecords', {}).get('AuditRecord', [])
         }
+        
         if isinstance(cleaned_record['AuditRecords'], dict):
             cleaned_record['AuditRecords'] = [cleaned_record['AuditRecords']]
+        
         cleaned_records.append(cleaned_record)
     
     return cleaned_records
@@ -100,3 +105,11 @@ def filter_and_merge_dfs(df):
     df_final = df_final[~df_final['Origin'].str.contains('RealTime', na=False)]
 
     return df_final
+
+# Uso del código
+xml_file_path = 'path_to_your_file.xml'
+xml_dict = xml_to_dict(xml_file_path)
+cleaned_records = clean_dict(xml_dict)  # Limpiar el diccionario
+df = parse_dict_to_dataframe(cleaned_records)
+df_final = filter_and_merge_dfs(df)
+print(df_final)
