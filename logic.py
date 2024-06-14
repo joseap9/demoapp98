@@ -11,28 +11,42 @@ def xml_to_dict(xml_file_path):
     
     return xml_dict
 
-def parse_dict_to_dataframe(xml_dict):
-    # Extrae los registros del diccionario
+def clean_dict(xml_dict):
+    cleaned_records = []
     records = xml_dict['ResultRecords']['ResultRecord']
     
+    for record in records:
+        cleaned_record = {
+            'Id': record.get('Id', ''),
+            'EntityType': record.get('InputEntity', {}).get('EntityType', ''),
+            'Full': record.get('InputEntity', {}).get('Name', {}).get('Full', ''),
+            'IdNumber': record.get('IdNumber', ''),
+            'Status': record.get('Status', ''),
+            'AlertState': record.get('AlertState', ''),
+            'Origin': record.get('Origin', ''),
+            'AuditRecords': record.get('AuditRecords', {}).get('AuditRecord', [])
+        }
+        if isinstance(cleaned_record['AuditRecords'], dict):
+            cleaned_record['AuditRecords'] = [cleaned_record['AuditRecords']]
+        cleaned_records.append(cleaned_record)
+    
+    return cleaned_records
+
+def parse_dict_to_dataframe(cleaned_records):
     columns = ["Id", "EntityType", "Full", "IdNumber", "Status", "AlertState", "Action", "Note", "Origin"]
     data = {column: [] for column in columns}
     
-    for record in records:
-        id_value = record.get('Id', '')
-        input_entity = record.get('InputEntity', {})
-        entity_type = input_entity.get('EntityType', '')
-        name = input_entity.get('Name', {})
-        full_name = name.get('Full', '')
-        id_number = record.get('IdNumber', '')
-        status = record.get('Status', '')
-        alert_state = record.get('AlertState', '')
-        origin = record.get('Origin', '')
+    for record in cleaned_records:
+        id_value = record['Id']
+        entity_type = record['EntityType']
+        full_name = record['Full']
+        id_number = record['IdNumber']
+        status = record['Status']
+        alert_state = record['AlertState']
+        origin = record['Origin']
         
-        audit_records = record.get('AuditRecords', {}).get('AuditRecord', [])
-        if isinstance(audit_records, dict):
-            audit_records = [audit_records]
-
+        audit_records = record['AuditRecords']
+        
         if not audit_records:
             data['Id'].append(id_value)
             data['EntityType'].append(entity_type)
