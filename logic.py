@@ -25,5 +25,6 @@ def parse_xml_to_dataframe(xml_file):
 
     # Crear un DataFrame con los valores extraídos
     df = pd.DataFrame(full_values, columns=['Full'])
+    print(df.head(10))
     
     return df
