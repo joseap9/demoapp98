@@ -1,57 +1,46 @@
-import xml.etree.ElementTree as ET
-from collections import defaultdict
+import xmltodict
+import pandas as pd
 
-def parse_xml(file_path):
-    tree = ET.parse(file_path)
-    root = tree.getroot()
-    namespaces = defaultdict(set)
-    
-    def get_namespaces(elem, namespaces):
-        for ns in elem.iter():
-            if ns.tag[0] == "{":
-                uri, tag = ns.tag[1:].split("}")
-                namespaces[uri].add(tag)
-        return namespaces
-    
-    namespaces = get_namespaces(root, namespaces)
-    
-    print("Namespaces found in the XML:")
-    for ns, tags in namespaces.items():
-        print(f"Namespace: {ns}")
-        print("Tags:", ", ".join(tags))
-    
-    def print_tree(element, indent=""):
-        print(f"{indent}Tag: {element.tag}, Attributes: {element.attrib}")
-        for child in element:
-            print_tree(child, indent + "  ")
-    
-    print("\nXML Tree Structure:")
-    print_tree(root)
-    
-    return tree, namespaces
+def xml_to_dict(xml_file):
+    with open(xml_file, 'r', encoding='utf-8') as file:
+        xml_content = file.read()
+        return xmltodict.parse(xml_content)
 
-def find_element_path(tree, tag_name, namespaces):
-    for ns, tags in namespaces.items():
-        if tag_name in tags:
-            tag_with_ns = f"{{{ns}}}{tag_name}"
-            elements = tree.findall(f".//{tag_with_ns}")
-            for elem in elements:
-                print(f"\nFull path for tag '{tag_name}':")
-                print(elem.tag, elem.attrib)
-                parent_map = {c: p for p in tree.iter() for c in p}
-                path = [elem.tag]
-                parent = parent_map.get(elem)
-                while parent is not None:
-                    path.append(parent.tag)
-                    parent = parent_map.get(parent)
-                print(" -> ".join(reversed(path)))
-            return elements
-    print(f"Tag '{tag_name}' not found in the XML.")
-    return None
+def dict_to_dataframe(xml_dict):
+    # Imprimir la estructura del diccionario para depuración
+    print("Estructura del diccionario XML:", xml_dict)
+    
+    # Ajustar las claves según la estructura del diccionario
+    result_records = xml_dict.get('resultrecords', {}).get('resultrecord', [])
+    
+    # Asegurarse de que result_records sea una lista
+    if not isinstance(result_records, list):
+        result_records = [result_records]
+    
+    # Crear una lista de diccionarios
+    records_list = []
+    for record in result_records:
+        record_dict = {}
+        for key, value in record.items():
+            if isinstance(value, dict) and '#text' in value:
+                record_dict[key] = value['#text']
+            else:
+                record_dict[key] = value
+        records_list.append(record_dict)
+    
+    # Convertir la lista de diccionarios en un DataFrame
+    df = pd.DataFrame(records_list)
+    
+    return df
 
-# Ejemplo de uso
-file_path = r'tu_archivo.xml'  # Usa una cadena sin procesar para la ruta del archivo
-tree, namespaces = parse_xml(file_path)
+# Ruta al archivo XML
+xml_file = 'path_to_your_xml_file.xml'
 
-# Busca la etiqueta específica que deseas, por ejemplo, 'Full'
-elements = find_element_path(tree, 'Full', namespaces)
+# Convertir el XML a diccionario
+xml_dict = xml_to_dict(xml_file)
+
+# Convertir el diccionario a DataFrame
+df = dict_to_dataframe(xml_dict)
+
+# Mostrar el DataFrame
+print(df)
