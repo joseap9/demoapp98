@@ -65,6 +65,10 @@ def filter_and_merge_dfs(df):
     # DataFrame con Action = 'NewNote'
     df_new_note = df[df['Action'] == 'NewNote'].copy()
 
+    # Convertir Id a cadena para asegurarse de que es hashable
+    df_record_created['Id'] = df_record_created['Id'].astype(str)
+    df_new_note['Id'] = df_new_note['Id'].astype(str)
+
     # Merge de df_record_created con Note de df_new_note basado en Id
     df_final = df_record_created.copy()
     df_final['Note 2'] = df_final['Id'].map(df_new_note.set_index('Id')['Note'].to_dict())
